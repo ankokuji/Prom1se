@@ -1,3 +1,8 @@
+# dependencies liberary
 /node_modules
 
+# dependencies lock
 *.lock
+
+# compiled files
+/libs

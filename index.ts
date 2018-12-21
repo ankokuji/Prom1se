@@ -1,7 +1,7 @@
 import _ from "lodash/fp";
 
 /**
- * 
+ *
  *
  * @interface ConstructFun
  */
@@ -10,7 +10,7 @@ interface ConstructFun {
 }
 
 /**
- *
+ * 作为参数传递给then函数的函数
  *
  * @interface ThenFun
  */
@@ -18,22 +18,30 @@ interface ThenFun {
   (ans: any): any | Promise<any>;
 }
 
-// Promise的状态
-type Prom1seStatus = "pending" | "completed" | "failed";
+/**
+ * Promise状态
+ *
+ * @enum {number}
+ */
+enum Prom1seStatus {
+  "pending",
+  "completed",
+  "failed"
+}
 
 /**
  * Promise pollyfill
  *
  * @class Prom1se
  */
-class Prom1se {
+class Prom1seBase {
   /**
    * 保存Promise状态
    *
    * @private
    * @memberof Prom1se
    */
-  private status: Prom1seStatus = "pending";
+  private status: Prom1seStatus = Prom1seStatus.pending;
   /**
    * resolve需要执行的队列
    *
@@ -99,7 +107,7 @@ class Prom1se {
    * @memberof Prom1se
    */
   private execResolve(ans: any): void {
-    this.status = "completed";
+    this.status = Prom1seStatus.completed;
     this.execRes = ans;
     _.forEach((cb: Function) => {
       cb(ans);
@@ -113,7 +121,7 @@ class Prom1se {
    * @memberof Prom1se
    */
   private execReject(err: any): void {
-    this.status = "failed";
+    this.status = Prom1seStatus.failed;
   }
   /**
    *
@@ -128,12 +136,12 @@ class Prom1se {
    * then方法，会返回一个全新的Prom1se实例
    *
    * @param {ThenFun} thenFun
-   * @returns {Prom1se}
+   * @returns {Prom1seBase}
    * @memberof Prom1se
    */
-  public then(thenFun: ThenFun): Prom1se {
+  public then(thenFun: ThenFun): Prom1seBase {
     const self = this;
-    return new Prom1se((resolve, reject) => {
+    return new Prom1seBase((resolve, reject) => {
       /**
        * 实际的resolve执行
        *
@@ -141,7 +149,7 @@ class Prom1se {
        */
       function execResolve(ans: any) {
         const thenFunRes = thenFun(ans);
-        if (thenFunRes instanceof Prom1se) {
+        if (thenFunRes instanceof Prom1seBase) {
           //TODO
           thenFunRes.then(resolve as any);
         } else {
@@ -156,19 +164,29 @@ class Prom1se {
       function execReject(err: any) {
         // TODO
       }
-      if(self.status = "completed") {
+      if (Prom1seStatus.completed === self.status) {
         execResolve(this.execRes);
       } else {
         self.resolveQueue.push(execResolve);
       }
-      if(self.status = "failed") {
+      if (Prom1seStatus.failed === self.status) {
         // TODO
         // execReject(err)
       } else {
         self.rejectQueue.push(execReject);
       }
-
     });
+  }
+}
+
+class Prom1se extends Prom1seBase {
+  public static resolve(res: any) {
+    return new Prom1se((resolve: Function) => {
+      resolve(res);
+    })
+  }
+  public static all(pmsArr: Prom1se[]) {
+
   }
 }
 
@@ -177,14 +195,14 @@ class Prom1se {
  *
  */
 function main() {
-  const pms = new Prom1se((resolve, reject) => {
+  const pms = new Prom1seBase((resolve, reject) => {
     setTimeout(() => {
       resolve(2);
     }, 1000);
   });
   const haha = pms.then(res => {
     console.log(res);
-    return new Prom1se(resolve => {
+    return new Prom1seBase(resolve => {
       setTimeout(() => {
         resolve("haha");
       }, 3000);
@@ -196,13 +214,27 @@ function main() {
   });
 }
 
-
 /**
  * TODO: 测试Promise实现是否是不可变数据结构！！
  *
  */
 function test4Promise() {
-
+  // 证明Promise并非Immutable
+  const originalObj = {
+    a: 2
+  };
+  const pms = new Promise<any>((resvole, reject) => {
+    resvole(originalObj);
+  });
+  pms.then(res => {
+    res.b = "bbb";
+    console.log(originalObj);
+  });
+  pms.then(res => {
+    res.c = "ccc";
+    console.log(originalObj);
+  });
 }
 
-main();
+// main();
+test4Promise();
